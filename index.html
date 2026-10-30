@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gradio/lite@latest/dist/gradio-lite.js"></script>
+  </head>
+  <body>
+    <gradio-lite>
+      <script type="text/python">
+        import gradio as gr
+
+        def transform(text):
+            return text.upper()
+
+        demo = gr.Interface(
+            fn=transform,
+            inputs="text",
+            outputs="text",
+            title="Text Transformer",
+            description="A simple demo tool built with Gradio Lite."
+        )
+        demo.launch()
+      </script>
+    </gradio-lite>
+  </body>
+</html>
