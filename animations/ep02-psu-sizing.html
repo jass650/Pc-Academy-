@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PSU Sizing Animation</title>
+<style>
+  :root {
+    --page: #eef1f5; --chrome: #ffffff; --chrome-ink: #1b2330; --chrome-muted: #5b6676; --chrome-line: #d5dbe3;
+    /* the stage is a video frame, so its palette is fixed in both themes */
+    --bg: #0d1420; --panel: #152033; --ink: #f2f5fa; --muted: #8fa0b8; --line: #2a3a54;
+    --blue: #4da3ff; --green: #3ddc97; --amber: #ffb84d; --red: #ff6b6b; --violet: #a98bff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --page: #080b10; --chrome: #121821; --chrome-ink: #e6ebf2; --chrome-muted: #93a0b2; --chrome-line: #263142; }
+  }
+  :root[data-theme="dark"] { --page: #080b10; --chrome: #121821; --chrome-ink: #e6ebf2; --chrome-muted: #93a0b2; --chrome-line: #263142; }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--page); color: var(--chrome-ink); font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+         display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; }
+  body.clean { padding: 0; background: #000; }
+  body.clean .controls, body.clean .hint { display: none; }
+
+  .frame { width: min(100%, calc((100vh - 110px) * 16 / 9)); aspect-ratio: 16 / 9; position: relative; overflow: hidden;
+           border-radius: 10px; background: var(--bg); container-type: inline-size; }
+  body.clean .frame { width: min(100vw, calc(100vh * 16 / 9)); border-radius: 0; }
+
+  /* everything inside the stage is sized in cqw so it scales like a video */
+  .scene { position: absolute; inset: 0; padding: 5cqw 7cqw; color: var(--ink); opacity: 0; pointer-events: none;
+           display: flex; flex-direction: column; justify-content: center; transition: opacity .5s; }
+  .scene.on { opacity: 1; }
+  .a { opacity: 0; transform: translateY(1.2cqw); }
+  .scene.on .a { animation: rise .7s cubic-bezier(.2,.8,.2,1) forwards; animation-delay: var(--d, 0s); }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+
+  .kicker { font-size: 1.4cqw; letter-spacing: .3cqw; text-transform: uppercase; color: var(--blue); font-weight: 700; margin-bottom: 1cqw; }
+  h1 { font-size: 6cqw; margin: 0; line-height: 1.05; }
+  h2 { font-size: 3.6cqw; margin: 0 0 2.5cqw; }
+  .sub { font-size: 2cqw; color: var(--muted); margin-top: 1.5cqw; }
+  .big { font-size: 5cqw; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .eq { white-space: nowrap; font-size: 3.4cqw; font-weight: 700; font-variant-numeric: tabular-nums; margin: .8cqw 0; }
+  .eq .op { color: var(--muted); font-weight: 400; padding: 0 .6cqw; }
+  .hl-blue { color: var(--blue); } .hl-green { color: var(--green); } .hl-amber { color: var(--amber); } .hl-red { color: var(--red); }
+  .row { display: flex; gap: 4cqw; align-items: center; }
+  .panel { background: var(--panel); border: .15cqw solid var(--line); border-radius: 1.2cqw; padding: 2cqw 2.5cqw; }
+  #s-head .eq, #s-eff .eq { font-size: 2.9cqw; }
+  .note { font-size: 1.7cqw; color: var(--muted); margin-top: 2cqw; }
+
+  /* scene 1: PSU label */
+  .psu { width: 30cqw; height: 18cqw; border-radius: 1.2cqw; background: linear-gradient(145deg,#26324a,#141c2b);
+         border: .2cqw solid var(--line); display: grid; place-items: center; position: relative; }
+  .psu .fan { width: 12cqw; height: 12cqw; border-radius: 50%; border: .4cqw solid #3a4a66;
+              background: repeating-conic-gradient(#2f3d57 0 20deg, #1a2436 20deg 45deg); animation: spin 1.2s linear infinite; }
+  .psu .tag { position: absolute; right: -2cqw; bottom: -2cqw; background: var(--amber); color: #1a1200; font-weight: 800;
+              font-size: 2.6cqw; padding: .6cqw 1.4cqw; border-radius: .8cqw; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* scene 2: triangle */
+  .tri { width: 26cqw; }
+  .tri text { font-weight: 800; fill: var(--ink); }
+
+  /* scene 3: table + stacked bar */
+  table { border-collapse: collapse; font-size: 1.75cqw; font-variant-numeric: tabular-nums; }
+  td { padding: .45cqw 1.4cqw; border-bottom: .1cqw solid var(--line); }
+  td:last-child { text-align: right; font-weight: 700; }
+  tr.total td { border-bottom: 0; border-top: .25cqw solid var(--ink); font-size: 2.2cqw; color: var(--green); }
+  .sw { display: inline-block; width: 1.1cqw; height: 1.1cqw; border-radius: .25cqw; margin-right: .8cqw; vertical-align: -.1cqw; }
+  .stack { width: 7cqw; height: 30cqw; border: .15cqw solid var(--line); border-radius: .8cqw; display: flex;
+           flex-direction: column-reverse; overflow: hidden; background: #0a101a; }
+  .seg { height: 0; transition: height .6s cubic-bezier(.2,.8,.2,1); }
+
+  /* scene 4: gauge */
+  .gauge { width: 34cqw; }
+  .gauge .arc { fill: none; stroke-width: 14; stroke-linecap: round; }
+
+  /* scene 5: spike graph */
+  .graph { width: 100%; height: 26cqw; }
+  .graph .line { fill: none; stroke-width: 4; stroke-linejoin: round; }
+  .draw { stroke-dasharray: 2000; stroke-dashoffset: 2000; }
+  .scene.on .draw { animation: draw 3s ease-in-out forwards; animation-delay: var(--d, 0s); }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+
+  /* scene 6: efficiency bars */
+  .bars { display: grid; grid-template-columns: 12cqw 1fr 9cqw; gap: 1.4cqw 1.6cqw; align-items: center; font-size: 2cqw; }
+  .bar { height: 3.4cqw; border-radius: .6cqw; position: relative; background: #0a101a; overflow: hidden; }
+  .bar i { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: .6cqw; transition: width 1.4s cubic-bezier(.2,.8,.2,1); }
+  .bar i.dc { background: var(--blue); }
+  .bar i.loss { background: var(--red); opacity: .85; }
+
+  .badge { display: inline-block; font-size: 2.4cqw; font-weight: 800; padding: 1cqw 2cqw; border-radius: 1cqw; margin: 0 .6cqw; }
+
+  .progress { position: absolute; left: 0; bottom: 0; height: .35cqw; background: var(--blue); width: 0; }
+
+  /* chrome */
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center;
+              background: var(--chrome); border: 1px solid var(--chrome-line); border-radius: 10px; padding: 8px 10px; }
+  .controls button { font: inherit; font-size: 14px; color: var(--chrome-ink); background: transparent; border: 1px solid var(--chrome-line);
+                     border-radius: 7px; padding: 6px 12px; cursor: pointer; }
+  .controls button:hover { border-color: var(--chrome-muted); }
+  .controls .count { font-size: 14px; color: var(--chrome-muted); min-width: 64px; text-align: center; font-variant-numeric: tabular-nums; }
+  .hint { font-size: 13px; color: var(--chrome-muted); text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="frame" id="frame">
+
+  <!-- 1 -->
+  <section class="scene" data-dur="6">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <div class="kicker a">PC Academy · Episode 2</div>
+        <h1 class="a" style="--d:.2s">How big a<br>power supply?</h1>
+        <div class="sub a" style="--d:.5s">Let's find the number with four steps of math.</div>
+      </div>
+      <div class="psu a" style="--d:.4s"><div class="fan"></div><div class="tag">750 W?</div></div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="scene" data-dur="9">
+    <div class="kicker a">The one formula</div>
+    <div class="row">
+      <svg class="tri a" style="--d:.2s" viewBox="0 0 200 180">
+        <path d="M100 8 L192 172 L8 172 Z" fill="#152033" stroke="#4da3ff" stroke-width="4"/>
+        <line x1="54" y1="100" x2="146" y2="100" stroke="#2a3a54" stroke-width="3"/>
+        <line x1="100" y1="100" x2="100" y2="172" stroke="#2a3a54" stroke-width="3"/>
+        <text x="100" y="80" text-anchor="middle" font-size="40" style="fill:#ffb84d">P</text>
+        <text x="62" y="150" text-anchor="middle" font-size="36" style="fill:#4da3ff">V</text>
+        <text x="138" y="150" text-anchor="middle" font-size="36" style="fill:#3ddc97">I</text>
+      </svg>
+      <div>
+        <div class="eq a" style="--d:.5s"><span class="hl-amber">Power</span><span class="op">=</span><span class="hl-blue">Volts</span><span class="op">×</span><span class="hl-green">Amps</span></div>
+        <div class="eq a" style="--d:1.6s">The GPU: <span class="hl-blue">12 V</span><span class="op">×</span><span class="hl-green">16.7 A</span><span class="op">=</span><span class="hl-amber">200 W</span></div>
+        <div class="note a" style="--d:2.8s">A PSU turns wall power into mostly 12 volts.<br>Every part pulls some current from it.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="scene" data-dur="11" id="s-sum">
+    <div class="kicker a">Step 1 · Add up every part</div>
+    <div class="row" style="align-items:flex-end">
+      <table id="ptable"></table>
+      <div class="stack a" style="--d:.2s" id="stack"></div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="scene" data-dur="10" id="s-head">
+    <div class="kicker a">Step 2 · Add headroom</div>
+    <div class="row">
+      <div>
+        <div class="eq a" style="--d:.2s">Target: full load ≈ <span class="hl-blue">60%</span> of rating</div>
+        <div class="eq a" style="--d:1.2s">439 W <span class="op">÷</span> 0.60 <span class="op">=</span> <span class="hl-amber">732 W</span></div>
+        <div class="eq a" style="--d:2.4s">Round up <span class="op">→</span> <span class="hl-green">750 W</span></div>
+        <div class="eq a" style="--d:3.6s">Check: 439 <span class="op">÷</span> 750 <span class="op">=</span> <span class="hl-green">59%</span> ✓</div>
+      </div>
+      <svg class="gauge a" style="--d:.4s" viewBox="0 0 240 150">
+        <path class="arc" d="M20 130 A100 100 0 0 1 220 130" stroke="#2a3a54"/>
+        <path class="arc" id="gaugeArc" d="M20 130 A100 100 0 0 1 220 130" stroke="#3ddc97" stroke-dasharray="314.16" stroke-dashoffset="314.16" style="transition:stroke-dashoffset 2s cubic-bezier(.2,.8,.2,1)"/>
+        <text x="120" y="112" text-anchor="middle" font-size="40" font-weight="800" fill="#f2f5fa" id="gaugeTxt">0%</text>
+        <text x="120" y="140" text-anchor="middle" font-size="15" fill="#8fa0b8">of a 750 W PSU</text>
+      </svg>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="scene" data-dur="11">
+    <div class="kicker a">Step 3 · Survive the spikes</div>
+    <h2 class="a" style="--d:.1s">GPUs can briefly double their draw</h2>
+    <svg class="graph" viewBox="0 0 1000 300" preserveAspectRatio="none">
+      <line x1="0" y1="50" x2="1000" y2="50" stroke="#ff6b6b" stroke-width="3" stroke-dasharray="12 10"/>
+      <text x="990" y="40" text-anchor="end" font-size="24" fill="#ff6b6b" font-weight="700">750 W limit</text>
+      <path class="line draw" style="--d:.6s" stroke="#4da3ff"
+        d="M0 160 L120 158 L200 162 L280 157 L340 160 L360 92 L372 160 L480 156 L560 161 L600 158 L620 92 L634 158 L760 160 L840 157 L860 92 L874 160 L1000 158"/>
+      <text x="360" y="80" text-anchor="middle" font-size="22" fill="#ffb84d" font-weight="700" class="a" style="--d:2s">639 W spike</text>
+      <text x="10" y="195" font-size="22" fill="#8fa0b8" class="a" style="--d:1s">normal: 439 W</text>
+    </svg>
+    <div class="eq a" style="--d:2.8s">142 <span class="op">+</span> (2 × 200) <span class="op">+</span> 97 <span class="op">=</span> <span class="hl-amber">639 W</span> <span class="op">&lt;</span> <span class="hl-green">750 W ✓</span></div>
+  </section>
+
+  <!-- 6 -->
+  <section class="scene" data-dur="13" id="s-eff">
+    <div class="kicker a">Step 4 · Efficiency and your power bill</div>
+    <div class="bars a" style="--d:.2s">
+      <div>Gold 90%</div><div class="bar"><i class="loss" data-w="94.6"></i><i class="dc" data-w="85.1"></i></div><div class="hl-blue"><b>488 W</b></div>
+      <div>Bronze 85%</div><div class="bar"><i class="loss" data-w="100"></i><i class="dc" data-w="85.1"></i></div><div class="hl-blue"><b>516 W</b></div>
+    </div>
+    <div class="note a" style="--d:.6s"><span class="sw" style="background:var(--blue)"></span>439 W your parts use&nbsp;&nbsp;&nbsp;<span class="sw" style="background:var(--red)"></span>lost as heat in the PSU</div>
+    <div class="eq a" style="--d:2.2s">516 <span class="op">−</span> 488 <span class="op">=</span> <span class="hl-red">28 W</span> extra</div>
+    <div class="eq a" style="--d:3.6s">28 W <span class="op">×</span> 4 h <span class="op">×</span> 365 <span class="op">=</span> 40.9 kWh <span class="op">×</span> $0.16 <span class="op">=</span> <span class="hl-green">$6.54 / year</span></div>
+  </section>
+
+  <!-- 7 -->
+  <section class="scene" data-dur="6">
+    <div style="text-align:center">
+      <div class="kicker a">The answer</div>
+      <div class="a" style="--d:.3s">
+        <span class="badge" style="background:var(--blue);color:#001226">750 W</span>
+        <span class="badge" style="background:var(--amber);color:#1a1200">80 PLUS Gold</span>
+        <span class="badge" style="background:var(--green);color:#00170d">ATX 3.x</span>
+      </div>
+      <div class="sub a" style="--d:1s">Next time: we open the boxes.</div>
+    </div>
+  </section>
+
+  <div class="progress" id="prog"></div>
+</div>
+
+<div class="controls">
+  <button id="prev" aria-label="Previous scene">◀ Prev</button>
+  <button id="play">⏸ Pause</button>
+  <button id="next" aria-label="Next scene">Next ▶</button>
+  <span class="count" id="count">1 / 7</span>
+  <button id="restart">↺ Restart</button>
+  <button id="clean">Clean mode</button>
+</div>
+<div class="hint">For recording: Clean mode hides these buttons (press Esc or C to bring them back). Space plays and pauses, arrow keys change scene.</div>
+
+<script>
+(() => {
+  const parts = [
+    ["CPU (package limit)", 142, "#4da3ff"],
+    ["GPU (board power)", 200, "#a98bff"],
+    ["Motherboard", 50, "#3ddc97"],
+    ["RAM, 2 × 5 W", 10, "#ffb84d"],
+    ["NVMe SSD", 7, "#ff8fb1"],
+    ["Fans, 5 × 3 W", 15, "#5fd4e8"],
+    ["AIO pump", 5, "#c3e86b"],
+    ["USB devices, RGB", 10, "#ff6b6b"],
+  ];
+  const total = parts.reduce((s, p) => s + p[1], 0); // 439
+  const table = document.getElementById("ptable");
+  const stack = document.getElementById("stack");
+  parts.forEach(([name, w, c]) => {
+    table.insertAdjacentHTML("beforeend", `<tr class="pr" style="opacity:0"><td><span class="sw" style="background:${c}"></span>${name}</td><td>${w} W</td></tr>`);
+    stack.insertAdjacentHTML("beforeend", `<div class="seg" style="background:${c}" data-h="${(w / total * 100).toFixed(2)}"></div>`);
+  });
+  table.insertAdjacentHTML("beforeend", `<tr class="total pr" style="opacity:0"><td>Total</td><td id="tot">0 W</td></tr>`);
+
+  const scenes = [...document.querySelectorAll(".scene")];
+  const prog = document.getElementById("prog");
+  let i = 0, playing = true, timers = [], start = 0, elapsedBefore = 0, raf;
+
+  const later = (ms, fn) => timers.push(setTimeout(fn, ms));
+  const countUp = (el, to, ms, suffix) => {
+    const t0 = performance.now();
+    const tick = now => { const k = Math.min(1, (now - t0) / ms); el.textContent = Math.round(to * (1 - Math.pow(1 - k, 3))) + suffix; if (k < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  };
+
+  // per-scene extra choreography beyond the CSS staggers
+  const extras = {
+    "s-sum": s => {
+      const rows = s.querySelectorAll(".pr"), segs = s.querySelectorAll(".seg");
+      rows.forEach(r => { r.style.transition = "none"; r.style.opacity = 0; });
+      segs.forEach(g => { g.style.height = 0; });
+      parts.forEach((_, k) => later(500 + k * 850, () => {
+        rows[k].style.transition = "opacity .5s"; rows[k].style.opacity = 1;
+        segs[k].style.height = segs[k].dataset.h + "%";
+      }));
+      later(500 + parts.length * 850, () => {
+        rows[parts.length].style.transition = "opacity .5s"; rows[parts.length].style.opacity = 1;
+        countUp(document.getElementById("tot"), total, 1200, " W");
+      });
+    },
+    "s-head": () => {
+      const arc = document.getElementById("gaugeArc"), txt = document.getElementById("gaugeTxt");
+      arc.style.transition = "none"; arc.style.strokeDashoffset = 314.16; txt.textContent = "0%";
+      later(3800, () => {
+        arc.style.transition = "stroke-dashoffset 2s cubic-bezier(.2,.8,.2,1)";
+        arc.style.strokeDashoffset = 314.16 * (1 - 439 / 750);
+        countUp(txt, 59, 2000, "%");
+      });
+    },
+    "s-eff": s => {
+      const bars = s.querySelectorAll(".bar i");
+      bars.forEach(b => { b.style.transition = "none"; b.style.width = 0; });
+      later(900, () => bars.forEach(b => { b.style.transition = ""; b.style.width = b.dataset.w + "%"; }));
+    },
+  };
+
+  function restartCss(s) {
+    // re-trigger CSS animations when a scene is shown again
+    s.querySelectorAll(".a, .draw").forEach(el => { el.style.animation = "none"; void el.offsetWidth; el.style.animation = ""; });
+  }
+
+  function show(n) {
+    timers.forEach(clearTimeout); timers = [];
+    i = (n + scenes.length) % scenes.length;
+    scenes.forEach((s, k) => s.classList.toggle("on", k === i));
+    restartCss(scenes[i]);
+    extras[scenes[i].id]?.(scenes[i]);
+    document.getElementById("count").textContent = `${i + 1} / ${scenes.length}`;
+    elapsedBefore = 0; start = performance.now();
+  }
+
+  function loop(now) {
+    const dur = scenes[i].dataset.dur * 1000;
+    const el = elapsedBefore + (playing ? now - start : 0);
+    prog.style.width = Math.min(100, el / dur * 100) + "%";
+    if (playing && el >= dur && i < scenes.length - 1) show(i + 1);
+    raf = requestAnimationFrame(loop);
+  }
+
+  function togglePlay() {
+    if (playing) { elapsedBefore += performance.now() - start; } else { start = performance.now(); }
+    playing = !playing;
+    document.getElementById("play").textContent = playing ? "⏸ Pause" : "▶ Play";
+    scenes[i].querySelectorAll("*").forEach(el => el.style.animationPlayState = playing ? "" : "paused");
+  }
+
+  function setClean(on) { document.body.classList.toggle("clean", on); }
+
+  document.getElementById("prev").onclick = () => show(i - 1);
+  document.getElementById("next").onclick = () => show(i + 1);
+  document.getElementById("play").onclick = togglePlay;
+  document.getElementById("restart").onclick = () => { if (!playing) togglePlay(); show(0); };
+  document.getElementById("clean").onclick = () => setClean(true);
+  document.addEventListener("keydown", e => {
+    if (e.key === " ") { e.preventDefault(); togglePlay(); }
+    else if (e.key === "ArrowRight") show(i + 1);
+    else if (e.key === "ArrowLeft") show(i - 1);
+    else if (e.key === "Escape" || e.key.toLowerCase() === "c") setClean(e.key !== "Escape" && !document.body.classList.contains("clean"));
+  });
+
+  show(0);
+  raf = requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

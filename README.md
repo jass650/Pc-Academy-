@@ -39,3 +39,10 @@ Swap in your own parts and rerun the Math Boxes; the method is the same.
 - **[B-ROLL]** cutaway footage, **[OVERLAY]** on-screen graphic, **[CU]** close-up, **[WIDE]** wide shot, **[TOP]** overhead.
 - Every episode opens with a 10 second cold open and closes with a "next time" teaser.
 - Safety callouts get a yellow lower-third.
+
+## Animated graphics
+
+The `animations/` folder holds browser-based motion graphics for the Math Box overlays. Open one in Chrome, press **Clean mode**, go fullscreen, and screen-record it (OBS works well). Space pauses, arrow keys step through scenes.
+
+- [Episode 2: PSU sizing](animations/ep02-psu-sizing.html)
+- [Episode 3: CPU, RAM and M.2](animations/ep03-cpu-ram-m2.html)
