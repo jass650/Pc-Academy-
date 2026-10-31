@@ -44,6 +44,7 @@ Swap in your own parts and rerun the Math Boxes; the method is the same.
 
 The `animations/` folder holds browser-based motion graphics for the Math Box overlays. Open one in Chrome, press **Clean mode**, go fullscreen, and screen-record it (OBS works well). Space pauses, arrow keys step through scenes.
 
+- [Episode 1: Picking parts](animations/ep01-picking-parts.html)
 - [Episode 2: PSU sizing](animations/ep02-psu-sizing.html)
 - [Episode 3: CPU, RAM and M.2](animations/ep03-cpu-ram-m2.html)
 - [Episode 4: Cooler and case](animations/ep04-cooler-and-case.html)
