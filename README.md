@@ -46,3 +46,7 @@ The `animations/` folder holds browser-based motion graphics for the Math Box ov
 
 - [Episode 2: PSU sizing](animations/ep02-psu-sizing.html)
 - [Episode 3: CPU, RAM and M.2](animations/ep03-cpu-ram-m2.html)
+- [Episode 4: Cooler and case](animations/ep04-cooler-and-case.html)
+- [Episode 5: GPU, PSU and cables](animations/ep05-gpu-psu-cables.html)
+- [Episode 6: First boot and BIOS](animations/ep06-first-boot-bios.html)
+- [Episode 7: Troubleshooting](animations/ep07-troubleshooting.html)
