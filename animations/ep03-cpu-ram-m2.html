@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CPU RAM M.2 Animation</title>
+<style>
+  :root {
+    --page: #eef1f5; --chrome: #ffffff; --chrome-ink: #1b2330; --chrome-muted: #5b6676; --chrome-line: #d5dbe3;
+    /* the stage is a video frame, so its palette is fixed in both themes */
+    --bg: #0d1420; --panel: #152033; --ink: #f2f5fa; --muted: #8fa0b8; --line: #2a3a54;
+    --blue: #4da3ff; --green: #3ddc97; --amber: #ffb84d; --red: #ff6b6b; --violet: #a98bff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --page: #080b10; --chrome: #121821; --chrome-ink: #e6ebf2; --chrome-muted: #93a0b2; --chrome-line: #263142; }
+  }
+  :root[data-theme="dark"] { --page: #080b10; --chrome: #121821; --chrome-ink: #e6ebf2; --chrome-muted: #93a0b2; --chrome-line: #263142; }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--page); color: var(--chrome-ink); font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+         display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; }
+  body.clean { padding: 0; background: #000; }
+  body.clean .controls, body.clean .hint { display: none; }
+
+  .frame { width: min(100%, calc((100vh - 110px) * 16 / 9)); aspect-ratio: 16 / 9; position: relative; overflow: hidden;
+           border-radius: 10px; background: var(--bg); container-type: inline-size; }
+  body.clean .frame { width: min(100vw, calc(100vh * 16 / 9)); border-radius: 0; }
+
+  /* everything inside the stage is sized in cqw so it scales like a video */
+  .scene { position: absolute; inset: 0; padding: 5cqw 7cqw; color: var(--ink); opacity: 0; pointer-events: none;
+           display: flex; flex-direction: column; justify-content: center; transition: opacity .5s; }
+  .scene.on { opacity: 1; }
+  .a { opacity: 0; transform: translateY(1.2cqw); }
+  .scene.on .a { animation: rise .7s cubic-bezier(.2,.8,.2,1) forwards; animation-delay: var(--d, 0s); }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+
+  .kicker { font-size: 1.4cqw; letter-spacing: .3cqw; text-transform: uppercase; color: var(--blue); font-weight: 700; margin-bottom: 1cqw; }
+  h1 { font-size: 6cqw; margin: 0; line-height: 1.05; }
+  h2 { font-size: 3.6cqw; margin: 0 0 2.5cqw; }
+  .sub { font-size: 2cqw; color: var(--muted); margin-top: 1.5cqw; }
+  .big { font-size: 5cqw; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .eq { white-space: nowrap; font-size: 3.4cqw; font-weight: 700; font-variant-numeric: tabular-nums; margin: .8cqw 0; }
+  .eq .op { color: var(--muted); font-weight: 400; padding: 0 .6cqw; }
+  .hl-blue { color: var(--blue); } .hl-green { color: var(--green); } .hl-amber { color: var(--amber); } .hl-red { color: var(--red); }
+  .row { display: flex; gap: 4cqw; align-items: center; }
+  .panel { background: var(--panel); border: .15cqw solid var(--line); border-radius: 1.2cqw; padding: 2cqw 2.5cqw; }
+  #s-head .eq, #s-eff .eq { font-size: 2.9cqw; }
+  .note { font-size: 1.7cqw; color: var(--muted); margin-top: 2cqw; }
+
+  /* scene 1: PSU label */
+  .psu { width: 30cqw; height: 18cqw; border-radius: 1.2cqw; background: linear-gradient(145deg,#26324a,#141c2b);
+         border: .2cqw solid var(--line); display: grid; place-items: center; position: relative; }
+  .psu .fan { width: 12cqw; height: 12cqw; border-radius: 50%; border: .4cqw solid #3a4a66;
+              background: repeating-conic-gradient(#2f3d57 0 20deg, #1a2436 20deg 45deg); animation: spin 1.2s linear infinite; }
+  .psu .tag { position: absolute; right: -2cqw; bottom: -2cqw; background: var(--amber); color: #1a1200; font-weight: 800;
+              font-size: 2.6cqw; padding: .6cqw 1.4cqw; border-radius: .8cqw; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* scene 2: triangle */
+  .tri { width: 26cqw; }
+  .tri text { font-weight: 800; fill: var(--ink); }
+
+  /* scene 3: table + stacked bar */
+  table { border-collapse: collapse; font-size: 1.75cqw; font-variant-numeric: tabular-nums; }
+  td { padding: .45cqw 1.4cqw; border-bottom: .1cqw solid var(--line); }
+  td:last-child { text-align: right; font-weight: 700; }
+  tr.total td { border-bottom: 0; border-top: .25cqw solid var(--ink); font-size: 2.2cqw; color: var(--green); }
+  .sw { display: inline-block; width: 1.1cqw; height: 1.1cqw; border-radius: .25cqw; margin-right: .8cqw; vertical-align: -.1cqw; }
+  .stack { width: 7cqw; height: 30cqw; border: .15cqw solid var(--line); border-radius: .8cqw; display: flex;
+           flex-direction: column-reverse; overflow: hidden; background: #0a101a; }
+  .seg { height: 0; transition: height .6s cubic-bezier(.2,.8,.2,1); }
+
+  /* scene 4: gauge */
+  .gauge { width: 34cqw; }
+  .gauge .arc { fill: none; stroke-width: 14; stroke-linecap: round; }
+
+  /* scene 5: spike graph */
+  .graph { width: 100%; height: 26cqw; }
+  .graph .line { fill: none; stroke-width: 4; stroke-linejoin: round; }
+  .draw { stroke-dasharray: 2000; stroke-dashoffset: 2000; }
+  .scene.on .draw { animation: draw 3s ease-in-out forwards; animation-delay: var(--d, 0s); }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+
+  /* scene 6: efficiency bars */
+  .bars { display: grid; grid-template-columns: 12cqw 1fr 9cqw; gap: 1.4cqw 1.6cqw; align-items: center; font-size: 2cqw; }
+  .bar { height: 3.4cqw; border-radius: .6cqw; position: relative; background: #0a101a; overflow: hidden; }
+  .bar i { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: .6cqw; transition: width 1.4s cubic-bezier(.2,.8,.2,1); }
+  .bar i.dc { background: var(--blue); }
+  .bar i.loss { background: var(--red); opacity: .85; }
+
+  .badge { display: inline-block; font-size: 2.4cqw; font-weight: 800; padding: 1cqw 2cqw; border-radius: 1cqw; margin: 0 .6cqw; }
+
+
+  /* episode 3 visuals */
+  .socket { width: 30cqw; height: 30cqw; position: relative; }
+  .cpu { position: absolute; left: 5cqw; top: 5cqw; width: 20cqw; height: 20cqw; border-radius: 1cqw;
+         background: linear-gradient(145deg,#c9d2de,#8d99aa); color: #18202c; display: grid; place-items: center;
+         font-weight: 800; font-size: 2cqw; transform: translateY(-14cqw) rotate(0deg); opacity: 0;
+         transition: transform 1.8s cubic-bezier(.3,.7,.2,1), opacity .4s; }
+  .cpu.in { transform: none; opacity: 1; }
+  .tri-mark { position: absolute; width: 0; height: 0; border-left: 1.6cqw solid var(--amber); border-bottom: 1.6cqw solid transparent; }
+  .slots { display: flex; gap: 2.4cqw; align-items: flex-end; }
+  .slot { width: 4cqw; height: 26cqw; border-radius: .6cqw; border: .2cqw solid var(--line); background: #0a101a; position: relative; }
+  .slot b { position: absolute; bottom: -3.2cqw; left: 50%; transform: translateX(-50%); font-size: 1.6cqw; color: var(--muted); }
+  .slot.pick { border-color: var(--green); }
+  .slot.pick b { color: var(--green); }
+  .stick { position: absolute; inset: .4cqw; border-radius: .4cqw; background: linear-gradient(#3ddc97,#1f8f60);
+           transform: translateY(-34cqw); opacity: 0; transition: transform 1.2s cubic-bezier(.3,.7,.2,1), opacity .3s; }
+  .stick.in { transform: none; opacity: 1; }
+  .lanes { display: grid; gap: 1.4cqw; width: 26cqw; flex: none; }
+  .lane { height: 3.4cqw; border-radius: .5cqw; background: #0a101a; position: relative; overflow: hidden; border: .12cqw solid var(--line); }
+  .lane span { position: absolute; top: 25%; width: 3cqw; height: 50%; border-radius: .4cqw; background: var(--blue); left: -4cqw; }
+  .scene.on .lane span { animation: zoom 1.4s linear infinite; animation-delay: var(--d, 0s); }
+  @keyframes zoom { to { left: 104%; } }
+  .m2wrap { width: 40cqw; height: 18cqw; position: relative; }
+  .m2slot { position: absolute; left: 0; top: 7cqw; width: 3cqw; height: 4cqw; background: #2a3a54; border-radius: .3cqw; }
+  .m2 { position: absolute; left: 2.6cqw; top: 7.4cqw; width: 34cqw; height: 3.2cqw; border-radius: .3cqw;
+        background: linear-gradient(90deg,#1f2b40,#33445f); border: .15cqw solid #4a5d7c; transform-origin: 0 50%;
+        transform: rotate(-30deg) translateX(6cqw); opacity: 0; transition: transform 1.2s ease, opacity .4s; }
+  .m2.seat { transform: rotate(-30deg); opacity: 1; }
+  .m2.flat { transform: rotate(0deg); opacity: 1; }
+  .m2 i { position: absolute; top: .6cqw; width: 5cqw; height: 1.8cqw; background: #0d1420; border-radius: .2cqw; }
+  .screw { position: absolute; left: 37cqw; top: 7.6cqw; width: 2.8cqw; height: 2.8cqw; border-radius: 50%; background: var(--amber);
+           opacity: 0; transform: scale(2); transition: all .5s; }
+  .screw.in { opacity: 1; transform: none; }
+
+  .progress { position: absolute; left: 0; bottom: 0; height: .35cqw; background: var(--blue); width: 0; }
+
+  /* chrome */
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center;
+              background: var(--chrome); border: 1px solid var(--chrome-line); border-radius: 10px; padding: 8px 10px; }
+  .controls button { font: inherit; font-size: 14px; color: var(--chrome-ink); background: transparent; border: 1px solid var(--chrome-line);
+                     border-radius: 7px; padding: 6px 12px; cursor: pointer; }
+  .controls button:hover { border-color: var(--chrome-muted); }
+  .controls .count { font-size: 14px; color: var(--chrome-muted); min-width: 64px; text-align: center; font-variant-numeric: tabular-nums; }
+  .hint { font-size: 13px; color: var(--chrome-muted); text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="frame" id="frame">
+
+  <!-- 1 -->
+  <section class="scene" data-dur="6">
+    <div class="kicker a">PC Academy · Episode 3</div>
+    <h1 class="a" style="--d:.2s">CPU, RAM and M.2<br>on the bench</h1>
+    <div class="sub a" style="--d:.5s">No force. If you're pushing, stop.</div>
+  </section>
+
+  <!-- 2 -->
+  <section class="scene" data-dur="8">
+    <div class="kicker a">Before you touch anything</div>
+    <h2 class="a" style="--d:.1s">Static safety in three moves</h2>
+    <div class="eq a" style="--d:.8s"><span class="hl-amber">1</span> Touch bare metal (or wear a wrist strap)</div>
+    <div class="eq a" style="--d:1.8s"><span class="hl-amber">2</span> Work on the motherboard box, not the carpet</div>
+    <div class="eq a" style="--d:2.8s"><span class="hl-amber">3</span> Hold every part by its edges</div>
+  </section>
+
+  <!-- 3 -->
+  <section class="scene" data-dur="9" id="s-cpu">
+    <div class="kicker a">Step 1 · CPU</div>
+    <div class="row">
+      <div class="socket a" style="--d:.1s">
+        <div class="panel" style="position:absolute;inset:0;padding:0"></div>
+        <div class="tri-mark" style="left:1.4cqw;top:1.4cqw"></div>
+        <div class="cpu" id="cpu">CPU<div class="tri-mark" style="left:.8cqw;top:.8cqw"></div></div>
+      </div>
+      <div>
+        <div class="eq a" style="--d:.4s">Line up the <span class="hl-amber">triangles</span></div>
+        <div class="eq a" style="--d:1.6s">Lower <span class="hl-blue">straight down</span></div>
+        <div class="eq a" style="--d:3.6s">Close the arm <span class="hl-green">✓</span></div>
+        <div class="note a" style="--d:4.4s">Keep the plastic socket cover for warranty returns.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="scene" data-dur="10" id="s-ram">
+    <div class="kicker a">Step 2 · RAM</div>
+    <div class="row">
+      <div class="slots a" style="--d:.1s">
+        <div class="slot"><b>A1</b></div>
+        <div class="slot pick"><b>A2</b><div class="stick"></div></div>
+        <div class="slot"><b>B1</b></div>
+        <div class="slot pick"><b>B2</b><div class="stick"></div></div>
+      </div>
+      <div>
+        <div class="eq a" style="--d:.5s">Two sticks go in <span class="hl-green">A2</span> and <span class="hl-green">B2</span></div>
+        <div class="eq a" style="--d:1.5s">2nd and 4th slot from the CPU</div>
+        <div class="eq a" style="--d:3.5s">Press both ends until it <span class="hl-amber">clicks</span></div>
+        <div class="note a" style="--d:4.2s">Always check your motherboard manual.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="scene" data-dur="13">
+    <div class="kicker a">Math Box · Why two sticks?</div>
+    <h2 class="a" style="--d:.1s">DDR5-6000 bandwidth</h2>
+    <div class="eq a" style="--d:.8s">Each channel moves <span class="hl-blue">64 bits = 8 bytes</span> per transfer</div>
+    <div class="eq a" style="--d:2.2s">6000 million/s <span class="op">×</span> 8 bytes <span class="op">=</span> <span class="hl-amber">48 GB/s</span> per channel</div>
+    <div class="eq a" style="--d:3.8s">48 GB/s <span class="op">×</span> 2 channels <span class="op">=</span> <span class="hl-green">96 GB/s</span></div>
+    <div class="row a" style="--d:5.2s;margin-top:2cqw;gap:2cqw">
+      <div style="width:14cqw;font-size:2cqw">One stick</div><div class="bar" style="flex:1"><i class="dc" data-w="50"></i></div><div style="width:9cqw;font-size:2cqw" class="hl-amber"><b>48 GB/s</b></div>
+    </div>
+    <div class="row a" style="--d:5.4s;margin-top:1cqw;gap:2cqw">
+      <div style="width:14cqw;font-size:2cqw">Two sticks</div><div class="bar" style="flex:1"><i class="dc" data-w="100" style="background:var(--green)"></i></div><div style="width:9cqw;font-size:2cqw" class="hl-green"><b>96 GB/s</b></div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="scene" data-dur="9" id="s-m2">
+    <div class="kicker a">Step 3 · M.2 SSD</div>
+    <div class="m2wrap a" style="--d:.1s">
+      <div class="m2slot"></div>
+      <div class="m2" id="m2"><i style="left:6cqw"></i><i style="left:13cqw"></i><i style="left:20cqw"></i></div>
+      <div class="screw" id="screw"></div>
+    </div>
+    <div class="eq a" style="--d:.6s">Slide in at <span class="hl-amber">30°</span>, press <span class="hl-blue">flat</span>, then <span class="hl-green">screw</span></div>
+    <div class="note a" style="--d:1.2s">Peel the film off the heatsink's thermal pad first.</div>
+  </section>
+
+  <!-- 7 -->
+  <section class="scene" data-dur="13">
+    <div class="kicker a">Math Box · Why the top slot?</div>
+    <h2 class="a" style="--d:.1s">PCIe 4.0 × 4 lanes</h2>
+    <div class="row" style="align-items:flex-start">
+      <div class="lanes a" style="--d:.3s">
+        <div class="lane"><span style="--d:0s"></span></div>
+        <div class="lane"><span style="--d:.35s"></span></div>
+        <div class="lane"><span style="--d:.7s"></span></div>
+        <div class="lane"><span style="--d:1.05s"></span></div>
+      </div>
+      <div>
+        <div class="eq a" style="--d:1s">16 GT/s <span class="op">×</span> 128/130 <span class="op">=</span> 15.75 Gb/s</div>
+        <div class="eq a" style="--d:2.4s"><span class="op">×</span> 4 lanes <span class="op">=</span> 63 Gb/s</div>
+        <div class="eq a" style="--d:3.8s"><span class="op">÷</span> 8 bits <span class="op">=</span> <span class="hl-green">~7.9 GB/s</span></div>
+        <div class="note a" style="--d:5.2s">A PCIe 3.0 slot halves it to ~3.9 GB/s.<br>The top slot connects straight to the CPU.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="scene" data-dur="6">
+    <div style="text-align:center">
+      <div class="kicker a">On the bench</div>
+      <div class="a" style="--d:.3s">
+        <span class="badge" style="background:var(--blue);color:#001226">CPU ✓</span>
+        <span class="badge" style="background:var(--green);color:#00170d">RAM ✓</span>
+        <span class="badge" style="background:var(--amber);color:#1a1200">M.2 ✓</span>
+      </div>
+      <div class="sub a" style="--d:1s">Next time: cooler and into the case.</div>
+    </div>
+  </section>
+
+  <div class="progress" id="prog"></div>
+</div>
+
+<div class="controls">
+  <button id="prev" aria-label="Previous scene">◀ Prev</button>
+  <button id="play">⏸ Pause</button>
+  <button id="next" aria-label="Next scene">Next ▶</button>
+  <span class="count" id="count">1 / 8</span>
+  <button id="restart">↺ Restart</button>
+  <button id="clean">Clean mode</button>
+</div>
+<div class="hint">For recording: Clean mode hides these buttons (press Esc or C to bring them back). Space plays and pauses, arrow keys change scene.</div>
+
+<script>
+(() => {
+  const scenes = [...document.querySelectorAll(".scene")];
+  const prog = document.getElementById("prog");
+  let i = 0, playing = true, timers = [], start = 0, elapsedBefore = 0, raf;
+
+  const later = (ms, fn) => timers.push(setTimeout(fn, ms));
+  const countUp = (el, to, ms, suffix) => {
+    const t0 = performance.now();
+    const tick = now => { const k = Math.min(1, (now - t0) / ms); el.textContent = Math.round(to * (1 - Math.pow(1 - k, 3))) + suffix; if (k < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  };
+
+  // per-scene extra choreography beyond the CSS staggers
+  const extras = {
+    "s-cpu": s => {
+      const c = document.getElementById("cpu"); c.style.transition = "none"; c.classList.remove("in"); void c.offsetWidth; c.style.transition = "";
+      later(1600, () => c.classList.add("in"));
+    },
+    "s-ram": s => {
+      const st = s.querySelectorAll(".stick"); st.forEach(x => { x.style.transition = "none"; x.classList.remove("in"); void x.offsetWidth; x.style.transition = ""; });
+      later(2200, () => st[0].classList.add("in")); later(3000, () => st[1].classList.add("in"));
+    },
+    "s-m2": () => {
+      const m = document.getElementById("m2"), sc = document.getElementById("screw");
+      m.style.transition = "none"; m.className = "m2"; sc.classList.remove("in"); void m.offsetWidth; m.style.transition = "";
+      later(900, () => m.classList.add("seat"));
+      later(3000, () => { m.classList.remove("seat"); m.classList.add("flat"); });
+      later(4600, () => sc.classList.add("in"));
+    },
+  };
+  // bandwidth bars on any scene that has them
+  const fillBars = s => {
+    const bars = s.querySelectorAll(".bar i"); if (!bars.length) return;
+    bars.forEach(b => { b.style.transition = "none"; b.style.width = 0; });
+    later(5800, () => bars.forEach(b => { b.style.transition = ""; b.style.width = b.dataset.w + "%"; }));
+  };
+
+  function restartCss(s) {
+    // re-trigger CSS animations when a scene is shown again
+    s.querySelectorAll(".a, .draw").forEach(el => { el.style.animation = "none"; void el.offsetWidth; el.style.animation = ""; });
+  }
+
+  function show(n) {
+    timers.forEach(clearTimeout); timers = [];
+    i = (n + scenes.length) % scenes.length;
+    scenes.forEach((s, k) => s.classList.toggle("on", k === i));
+    restartCss(scenes[i]);
+    extras[scenes[i].id]?.(scenes[i]);
+    fillBars(scenes[i]);
+    document.getElementById("count").textContent = `${i + 1} / ${scenes.length}`;
+    elapsedBefore = 0; start = performance.now();
+  }
+
+  function loop(now) {
+    const dur = scenes[i].dataset.dur * 1000;
+    const el = elapsedBefore + (playing ? now - start : 0);
+    prog.style.width = Math.min(100, el / dur * 100) + "%";
+    if (playing && el >= dur && i < scenes.length - 1) show(i + 1);
+    raf = requestAnimationFrame(loop);
+  }
+
+  function togglePlay() {
+    if (playing) { elapsedBefore += performance.now() - start; } else { start = performance.now(); }
+    playing = !playing;
+    document.getElementById("play").textContent = playing ? "⏸ Pause" : "▶ Play";
+    scenes[i].querySelectorAll("*").forEach(el => el.style.animationPlayState = playing ? "" : "paused");
+  }
+
+  function setClean(on) { document.body.classList.toggle("clean", on); }
+
+  document.getElementById("prev").onclick = () => show(i - 1);
+  document.getElementById("next").onclick = () => show(i + 1);
+  document.getElementById("play").onclick = togglePlay;
+  document.getElementById("restart").onclick = () => { if (!playing) togglePlay(); show(0); };
+  document.getElementById("clean").onclick = () => setClean(true);
+  document.addEventListener("keydown", e => {
+    if (e.key === " ") { e.preventDefault(); togglePlay(); }
+    else if (e.key === "ArrowRight") show(i + 1);
+    else if (e.key === "ArrowLeft") show(i - 1);
+    else if (e.key === "Escape" || e.key.toLowerCase() === "c") setClean(e.key !== "Escape" && !document.body.classList.contains("clean"));
+  });
+
+  show(0);
+  raf = requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
