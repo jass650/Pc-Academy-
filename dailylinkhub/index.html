@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daily Link Hub | Deals, Picks &amp; Giveaways on Main Street</title>
+  <meta name="description" content="Daily Link Hub: your daily stroll down Main Street. Product picks, daily deals, free giveaways and a game-day squares board.">
+  <meta property="og:title" content="Daily Link Hub">
+  <meta property="og:description" content="Your daily stroll down Main Street: deals, picks, giveaways and game-day fun.">
+  <meta property="og:url" content="https://dailylinkhub.net/">
+  <link rel="canonical" href="https://dailylinkhub.net/">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏪</text></svg>">
+  <link rel="stylesheet" href="css/main-street.css">
+</head>
+<body data-page="home">
+  <header id="site-header"></header>
+
+  <main>
+    <section class="hero">
+      <div class="stars"></div>
+      <div class="wrap">
+        <h1 class="neon">Daily Link Hub</h1>
+        <p class="tagline">Your daily stroll down Main Street</p>
+        <p class="lead">Hand-picked deals, honest product picks, free giveaways and a game-day squares board. New links in the window every day.</p>
+        <div class="btn-row">
+          <a class="btn" href="#main-street">Walk Main Street</a>
+          <a class="btn red" href="giveaways.html">Enter Free Giveaway</a>
+        </div>
+      </div>
+      <div class="skyline" aria-hidden="true"></div>
+    </section>
+
+    <div class="ticker" data-ticker></div>
+
+    <section id="main-street" class="brick" style="color:#fff">
+      <div class="wrap">
+        <h2 class="section-title">The Shops on Main Street</h2>
+        <p class="section-sub" style="color:#f3e2cf">Every storefront is a different aisle of picks. Step inside one.</p>
+        <div class="street" data-shops></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <h2 class="section-title">Fresh off the Newsstand</h2>
+        <p class="section-sub">The latest posts on the bulletin board: roundups, how-tos and the occasional rant.</p>
+        <div class="corkboard" data-posts="3"></div>
+        <p class="center mt"><a class="btn" href="blog.html">See All Posts</a></p>
+      </div>
+    </section>
+
+    <section style="background:#efe3cf">
+      <div class="wrap">
+        <h2 class="section-title">The Town Square</h2>
+        <p class="section-sub">Where the crowd gathers. Always free to play.</p>
+        <div class="square-promo">
+          <div class="poster marquee-lights">
+            <h3>🎟️ Weekly Free Giveaway</h3>
+            <p>One winner every week takes home a prize from the shop windows. Enter with your email: no purchase, no catch.</p>
+            <a class="btn" href="giveaways.html">Get My Free Entry</a>
+            <p class="fine">No purchase necessary. See <a href="rules.html" style="color:var(--gold)">Official Rules</a>.</p>
+          </div>
+          <div class="poster">
+            <h3>🏈 Game-Day Squares Board</h3>
+            <p>Claim a box on the 10×10 board, numbers are drawn at random once it fills, and the score settles it every quarter. Share the board with your crew.</p>
+            <a class="btn green" href="squares.html">Open the Board</a>
+            <p class="fine">Free to play. For fun and sponsor prizes only.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="chalkboard">
+          <h2>Today's Special: The Mailing List</h2>
+          <p>One email a week with the best links, new giveaways and the squares schedule. Unsubscribe anytime.</p>
+          <form data-signup="newsletter" data-success="You're on the list! Watch your inbox.">
+            <div class="form-row">
+              <label class="visually-hidden" for="nl-email">Email</label>
+              <input id="nl-email" type="email" name="email" placeholder="you@example.com" required autocomplete="email">
+              <button class="btn" type="submit">Sign Me Up</button>
+            </div>
+            <p class="form-msg" role="status"></p>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="site-footer"></div>
+  <script src="js/site-data.js"></script>
+  <script src="js/site.js"></script>
+</body>
+</html>

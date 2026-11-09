@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Game-Day Squares Board | Daily Link Hub</title>
+  <meta name="description" content="Free football squares board. Claim boxes, draw random numbers, share the board link with your crew.">
+  <link rel="canonical" href="https://dailylinkhub.net/squares.html">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏈</text></svg>">
+  <link rel="stylesheet" href="css/main-street.css">
+  <style>
+    .board-wrap { overflow-x: auto; padding-bottom: 6px; }
+    .board {
+      --cell: clamp(30px, 7.4vw, 62px);
+      display: grid;
+      grid-template-columns: calc(var(--cell) * .9) calc(var(--cell) * .9) repeat(10, var(--cell));
+      grid-template-rows: calc(var(--cell) * .9) calc(var(--cell) * .9) repeat(10, var(--cell));
+      gap: 3px; width: max-content; margin: 0 auto;
+      background: var(--ink); padding: 6px; border-radius: 10px;
+      border: 4px solid var(--gold);
+    }
+    .team-top { grid-column: 3 / span 10; grid-row: 1; }
+    .team-side { grid-column: 1; grid-row: 3 / span 10; writing-mode: vertical-rl; transform: rotate(180deg); }
+    .team-top, .team-side {
+      display: grid; place-items: center; background: var(--red); color: #fff;
+      font-family: var(--font-sign); font-size: clamp(.75rem, 2vw, 1.1rem); border-radius: 6px; letter-spacing: .05em;
+      overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    }
+    .team-side { background: var(--navy); }
+    .corner { grid-column: 1 / span 2; grid-row: 1 / span 2; display: grid; place-items: center; font-size: 1.5rem; background: var(--green); border-radius: 6px; }
+    .num {
+      display: grid; place-items: center; background: var(--gold); color: var(--ink);
+      font-family: var(--font-sign); font-size: clamp(.9rem, 2.4vw, 1.4rem); border-radius: 4px;
+    }
+    .num.side { background: #ffd978; }
+    .cell {
+      background: var(--paper); border: 0; border-radius: 4px; cursor: pointer; padding: 2px;
+      font: 600 clamp(.5rem, 1.45vw, .78rem)/1.1 var(--font-body); color: var(--ink);
+      overflow: hidden; word-break: break-word; display: grid; place-items: center; text-align: center;
+    }
+    .cell:hover { background: #fff2b8; }
+    .cell.taken { background: #dff0e6; }
+    .cell.win { background: var(--neon-pink); color: #fff; box-shadow: inset 0 0 0 3px #fff; }
+    .cell .q { display: block; font-size: .85em; font-weight: 800; }
+    .locked .cell { cursor: default; }
+    .controls { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin-top: 26px; }
+    .controls .poster { padding: 18px; }
+    .controls h3 { font-size: 1.15rem; }
+    .field { display: grid; gap: 4px; font-weight: 600; margin-bottom: 10px; font-size: .92rem; }
+    .scores { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    .scores th, .scores td { padding: 4px; text-align: center; }
+    .scores input { width: 64px; padding: 6px; }
+    .scores .winner { font-weight: 700; color: var(--brick); text-align: left; }
+    .status-line { text-align: center; font-weight: 700; margin: 14px 0 0; }
+    .leader { list-style: none; padding: 0; margin: 0; font-size: .9rem; display: grid; gap: 3px; max-height: 210px; overflow: auto; }
+    .stack { display: flex; gap: 8px; flex-wrap: wrap; }
+    .stack .btn { font-size: .85rem; padding: 7px 12px; }
+    @media print {
+      #site-header, #site-footer, .controls, .page-banner p, .no-print { display: none !important; }
+      .board { --cell: 58px; }
+    }
+  </style>
+</head>
+<body data-page="squares">
+  <header id="site-header"></header>
+  <main>
+    <div class="page-banner brick"><div class="wrap">
+      <h1>🏈 Squares Board</h1>
+      <p>Claim your boxes. Numbers get drawn once the board fills. Free to play, just for fun.</p>
+    </div></div>
+
+    <section>
+      <div class="wrap">
+        <h2 class="section-title" id="game-title">Game Day</h2>
+        <p class="section-sub no-print" id="how">Type a name below, then tap empty boxes to claim them. Tap a claimed box again to free it.</p>
+        <div class="board-wrap"><div class="board" id="board" aria-label="Squares board"></div></div>
+        <p class="status-line" id="status" role="status"></p>
+
+        <div class="controls">
+          <div class="poster">
+            <h3>1 · Set Up the Game</h3>
+            <label class="field">Game name <input type="text" id="in-title" maxlength="60" placeholder="Sunday Night Showdown"></label>
+            <label class="field">Team across the top <input type="text" id="in-top" maxlength="24" placeholder="Home"></label>
+            <label class="field">Team down the side <input type="text" id="in-side" maxlength="24" placeholder="Away"></label>
+          </div>
+
+          <div class="poster">
+            <h3>2 · Claim Boxes</h3>
+            <label class="field">Name to place <input type="text" id="in-name" maxlength="24" placeholder="e.g. Uncle Ray"></label>
+            <div class="stack">
+              <button class="btn green" id="btn-fill" type="button">Split Empty Boxes Among Players</button>
+            </div>
+            <h3 class="mt" style="font-size:1rem">Who's on the board</h3>
+            <ul class="leader" id="leader"></ul>
+          </div>
+
+          <div class="poster">
+            <h3>3 · Draw the Numbers</h3>
+            <p style="margin-top:0;font-size:.9rem">Draws 0–9 in a random order for each team, using your browser's secure random number generator. Locks the board.</p>
+            <div class="stack">
+              <button class="btn red" id="btn-draw" type="button">Draw Numbers</button>
+              <button class="btn ghost" id="btn-unlock" type="button">Unlock / Clear Numbers</button>
+            </div>
+          </div>
+
+          <div class="poster">
+            <h3>4 · Enter Scores</h3>
+            <table class="scores">
+              <thead><tr><th></th><th id="th-top">Top</th><th id="th-side">Side</th><th class="winner">Winner</th></tr></thead>
+              <tbody id="score-rows"></tbody>
+            </table>
+            <p style="font-size:.8rem;margin:8px 0 0">Enter each team's total score at the end of each quarter (not just that quarter's points).</p>
+          </div>
+
+          <div class="poster">
+            <h3>5 · Share It</h3>
+            <p style="margin-top:0;font-size:.9rem">The whole board is saved inside the link. Send it to your group chat. Make changes, then copy a fresh link.</p>
+            <div class="stack">
+              <button class="btn" id="btn-share" type="button">Copy Share Link</button>
+              <button class="btn ghost" id="btn-print" type="button">Print Board</button>
+              <button class="btn ghost" id="btn-reset" type="button">New Board</button>
+            </div>
+            <p class="form-msg" id="share-msg" role="status"></p>
+          </div>
+        </div>
+
+        <p class="center mt no-print" style="font-size:.85rem;color:var(--ink-soft);max-width:680px;margin-inline:auto">
+          This board is a free scorekeeping tool for fun. Daily Link Hub does not collect money or run wagers on it. Check your local laws before playing for money.
+          New to squares? <a href="post.html?p=how-the-squares-board-works">Read how it works (plus the math)</a>.
+        </p>
+      </div>
+    </section>
+  </main>
+  <div id="site-footer"></div>
+  <script src="js/site-data.js"></script>
+  <script src="js/site.js"></script>
+  <script src="js/squares.js"></script>
+</body>
+</html>
