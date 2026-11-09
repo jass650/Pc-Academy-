@@ -12,11 +12,21 @@ Everything you change lives in **`js/site-data.js`**:
 |------------|------------------|
 | `SITE`     | Name, contact email, socials, and `formEndpoint` (where sign-ups go) |
 | `GIVEAWAY` | This week's prize, value, end date and the Wall of Winners |
+| `TV`       | Live news channels in the Main Street TV (YouTube channel IDs) |
+| `SCORES`   | Leagues on the live scoreboard under the TV |
 | `TICKER`   | The scrolling marquee messages |
 | `SHOPS`    | The storefronts (categories) on Main Street |
 | `POSTS`    | Blog posts, newest first. Copy one block, change the words, and the post shows up. |
 
 Affiliate links go in post bodies as `<a class="btn" href="YOUR-LINK" rel="sponsored nofollow noopener" target="_blank">Check Price →</a>`.
+
+## Main Street TV and live scores
+
+- The home page has a **Good Morning, Main Street** briefing next to a retro TV. The other pages get a **📺 Live TV** button that docks the same TV in the corner.
+- The TV plays each network's **official YouTube live stream**. Those channels allow embedding, which makes this legal. Streams don't load until a viewer picks a channel, and they start muted.
+- **Live games can't be shown.** League broadcast rights don't allow it, and unofficial streams get sites taken down and can put your affiliate accounts at risk. The scoreboard shows live scores instead, using ESPN's public scoreboard feed and refreshing every minute.
+- If a channel isn't live or the score feed is down, viewers get a "Watch on YouTube" or "See scores on ESPN" link instead of a blank box.
+- Check each channel once after launch. Networks sometimes end a live stream or change channels; swap the `id` in `site-data.js` if needed.
 
 ## Before launch checklist
 

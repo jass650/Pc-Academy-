@@ -41,6 +41,30 @@ window.DLH = {
     ]
   },
 
+  /* MAIN STREET TV — live news channels shown in the side TV window.
+     Each uses the channel's own official YouTube live stream (embedding is
+     allowed by the channel). "id" is the YouTube channel ID (starts with UC).
+     To add one: open the channel on YouTube → About/Share → Copy channel ID.
+     If a channel isn't live right now, viewers get a "Watch on YouTube" link. */
+  TV: [
+    { name: "ABC News",  id: "UCBi2mrWuNuyYy4gbM6fU18Q" },
+    { name: "NBC News",  id: "UCeY0bbntWzzVIaj2z3QigXg" },
+    { name: "CBS News",  id: "UC8p1vwvWtl6T73JiExfWs1g" },
+    { name: "LiveNOW",   id: "UCJg9wBPyKMNA5sRDnvzmkdg" },
+    { name: "Bloomberg", id: "UCIALMKvObZNtJ6AmdCLP7Lg" },
+    { name: "Sky News",  id: "UCoMdktPbSTixAyNGwb-UYkQ" }
+  ],
+
+  /* LIVE SCOREBOARD — leagues shown under the TV (ESPN public scoreboard feed).
+     path = ESPN sport/league. Remove any you don't want. */
+  SCORES: [
+    { name: "NFL",  path: "football/nfl" },
+    { name: "NCAAF", path: "football/college-football" },
+    { name: "NBA",  path: "basketball/nba" },
+    { name: "NHL",  path: "hockey/nhl" },
+    { name: "MLB",  path: "baseball/mlb" }
+  ],
+
   TICKER: [
     "Fresh deals posted daily",
     "Free weekly giveaway — no purchase necessary",
