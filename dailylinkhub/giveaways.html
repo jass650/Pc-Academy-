@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Town Square Giveaways | Daily Link Hub</title>
+  <meta name="description" content="Free weekly giveaways at Daily Link Hub. No purchase necessary.">
+  <link rel="canonical" href="https://dailylinkhub.net/giveaways.html">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏪</text></svg>">
+  <link rel="stylesheet" href="css/main-street.css">
+  <style>
+    .countdown { display: flex; gap: 10px; justify-content: center; margin: 18px 0; flex-wrap: wrap; }
+    .countdown div { background: var(--ink); color: var(--gold); border: 3px solid var(--gold); border-radius: 8px; padding: 8px 12px; min-width: 74px; text-align: center; }
+    .countdown b { display: block; font-family: var(--font-sign); font-size: 1.8rem; line-height: 1; }
+    .countdown small { font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; }
+    .entry-form { display: grid; gap: 12px; max-width: 460px; margin: 0 auto; text-align: left; }
+    .entry-form label { font-weight: 600; display: grid; gap: 4px; }
+    .entry-form .check { display: flex; gap: 8px; align-items: flex-start; font-weight: 400; font-size: .9rem; }
+    .prize-window { font-size: 4.5rem; text-align: center; }
+    .winners { list-style: none; padding: 0; display: grid; gap: 8px; }
+    .winners li { background: var(--paper); border: 2px solid var(--ink); border-radius: 8px; padding: 8px 12px; }
+  </style>
+</head>
+<body data-page="giveaways">
+  <header id="site-header"></header>
+  <main>
+    <div class="page-banner brick"><div class="wrap">
+      <h1>The Town Square</h1>
+      <p>Free giveaways every week. No purchase, no catch. Just your name in the hat.</p>
+    </div></div>
+
+    <section>
+      <div class="wrap square-promo">
+        <div class="poster marquee-lights center">
+          <div class="prize-window" id="gw-icon" aria-hidden="true">🎁</div>
+          <h3 id="gw-title">This Week's Giveaway</h3>
+          <p id="gw-prize"></p>
+          <p class="fine" id="gw-arv"></p>
+          <div class="countdown" id="gw-countdown" aria-live="polite"></div>
+        </div>
+
+        <div class="poster">
+          <h3>Drop Your Name in the Hat</h3>
+          <form class="entry-form" data-signup="giveaway" data-success="You're entered! Good luck. We'll email the winner.">
+            <label>First &amp; last name <input type="text" name="name" required autocomplete="name"></label>
+            <label>Email <input type="email" name="email" required autocomplete="email"></label>
+            <label>State <input type="text" name="state" required maxlength="20" placeholder="e.g. OH"></label>
+            <label class="check"><input type="checkbox" name="adult" value="yes" required> I'm 18 or older and a legal U.S. resident.</label>
+            <label class="check"><input type="checkbox" name="rules" value="agreed" required> I agree to the <a href="rules.html">Official Rules</a>.</label>
+            <label class="check"><input type="checkbox" name="newsletter" value="yes"> Also send me the weekly Main Street email (optional).</label>
+            <button class="btn red" type="submit">Enter for Free</button>
+            <p class="form-msg" role="status"></p>
+            <p class="fine" style="margin:0;font-size:.8rem;color:var(--ink-soft)">NO PURCHASE NECESSARY. One entry per person. Void where prohibited.</p>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section style="background:#efe3cf">
+      <div class="wrap">
+        <h2 class="section-title">Wall of Winners</h2>
+        <p class="section-sub">Real neighbors, real prizes.</p>
+        <ul class="winners wrap" id="gw-winners" style="max-width:600px"></ul>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="chalkboard">
+          <h2>Brands: Sponsor a Giveaway</h2>
+          <p>Put your product in the Main Street shop window. Sponsored giveaways include a feature post, newsletter spot and social shout-out.</p>
+          <a class="btn" href="mailto:hello@dailylinkhub.net?subject=Giveaway%20sponsorship">Talk Sponsorships</a>
+        </div>
+      </div>
+    </section>
+  </main>
+  <div id="site-footer"></div>
+  <script src="js/site-data.js"></script>
+  <script src="js/site.js"></script>
+  <script src="js/tv.js"></script>
+  <script>
+    (function () {
+      const G = window.DLH.GIVEAWAY;
+      const $ = (id) => document.getElementById(id);
+      $("gw-icon").textContent = G.icon;
+      $("gw-title").textContent = G.title;
+      $("gw-prize").textContent = G.prize;
+      $("gw-arv").textContent = "Approximate retail value: " + G.arv + " · No purchase necessary";
+
+      const end = new Date(G.ends).getTime();
+      const cd = $("gw-countdown");
+      const tick = () => {
+        let s = Math.max(0, Math.floor((end - Date.now()) / 1000));
+        if (s === 0) { cd.innerHTML = "<div><b>CLOSED</b><small>winner coming soon</small></div>"; return; }
+        const parts = [["days", 86400], ["hrs", 3600], ["min", 60], ["sec", 1]].map(([l, n]) => { const v = Math.floor(s / n); s %= n; return [l, v]; });
+        cd.innerHTML = parts.map(([l, v]) => `<div><b>${String(v).padStart(2, "0")}</b><small>${l}</small></div>`).join("");
+      };
+      tick(); setInterval(tick, 1000);
+
+      const w = $("gw-winners");
+      w.innerHTML = G.pastWinners.length
+        ? G.pastWinners.map((x) => `<li>🏆 <b></b> won <span></span> <small></small></li>`).join("")
+        : `<li class="center">The first winner's name goes up here. Could be you!</li>`;
+      G.pastWinners.forEach((x, i) => {
+        const li = w.children[i];
+        li.querySelector("b").textContent = x.name;
+        li.querySelector("span").textContent = x.prize;
+        li.querySelector("small").textContent = "· " + x.date;
+      });
+    })();
+  </script>
+</body>
+</html>
