@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Picking Parts Animation</title>
+<style>
+  :root {
+    --page: #eef1f5; --chrome: #ffffff; --chrome-ink: #1b2330; --chrome-muted: #5b6676; --chrome-line: #d5dbe3;
+    /* the stage is a video frame, so its palette is fixed in both themes */
+    --bg: #0d1420; --panel: #152033; --ink: #f2f5fa; --muted: #8fa0b8; --line: #2a3a54;
+    --blue: #4da3ff; --green: #3ddc97; --amber: #ffb84d; --red: #ff6b6b; --violet: #a98bff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --page: #080b10; --chrome: #121821; --chrome-ink: #e6ebf2; --chrome-muted: #93a0b2; --chrome-line: #263142; }
+  }
+  :root[data-theme="dark"] { --page: #080b10; --chrome: #121821; --chrome-ink: #e6ebf2; --chrome-muted: #93a0b2; --chrome-line: #263142; }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--page); color: var(--chrome-ink); font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+         display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; }
+  body.clean { padding: 0; background: #000; }
+  body.clean .controls, body.clean .hint { display: none; }
+
+  .frame { width: min(100%, calc((100vh - 110px) * 16 / 9)); aspect-ratio: 16 / 9; position: relative; overflow: hidden;
+           border-radius: 10px; background: var(--bg); container-type: inline-size; }
+  body.clean .frame { width: min(100vw, calc(100vh * 16 / 9)); border-radius: 0; }
+
+  /* everything inside the stage is sized in cqw so it scales like a video */
+  .scene { position: absolute; inset: 0; padding: 5cqw 7cqw; color: var(--ink); opacity: 0; pointer-events: none;
+           display: flex; flex-direction: column; justify-content: center; transition: opacity .5s; }
+  .scene.on { opacity: 1; }
+  .a { opacity: 0; transform: translateY(1.2cqw); }
+  .scene.on .a { animation: rise .7s cubic-bezier(.2,.8,.2,1) forwards; animation-delay: var(--d, 0s); }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+
+  .kicker { font-size: 1.4cqw; letter-spacing: .3cqw; text-transform: uppercase; color: var(--blue); font-weight: 700; margin-bottom: 1cqw; }
+  h1 { font-size: 6cqw; margin: 0; line-height: 1.05; }
+  h2 { font-size: 3.6cqw; margin: 0 0 2.5cqw; }
+  .sub { font-size: 2cqw; color: var(--muted); margin-top: 1.5cqw; }
+  .big { font-size: 5cqw; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .eq { white-space: nowrap; font-size: 3.4cqw; font-weight: 700; font-variant-numeric: tabular-nums; margin: .8cqw 0; }
+  .eq .op { color: var(--muted); font-weight: 400; padding: 0 .6cqw; }
+  .hl-blue { color: var(--blue); } .hl-green { color: var(--green); } .hl-amber { color: var(--amber); } .hl-red { color: var(--red); }
+  .row { display: flex; gap: 4cqw; align-items: center; }
+  .panel { background: var(--panel); border: .15cqw solid var(--line); border-radius: 1.2cqw; padding: 2cqw 2.5cqw; }
+  #s-head .eq, #s-eff .eq { font-size: 2.9cqw; }
+  .note { font-size: 1.7cqw; color: var(--muted); margin-top: 2cqw; }
+
+  /* scene 1: PSU label */
+  .psu { width: 30cqw; height: 18cqw; border-radius: 1.2cqw; background: linear-gradient(145deg,#26324a,#141c2b);
+         border: .2cqw solid var(--line); display: grid; place-items: center; position: relative; }
+  .psu .fan { width: 12cqw; height: 12cqw; border-radius: 50%; border: .4cqw solid #3a4a66;
+              background: repeating-conic-gradient(#2f3d57 0 20deg, #1a2436 20deg 45deg); animation: spin 1.2s linear infinite; }
+  .psu .tag { position: absolute; right: -2cqw; bottom: -2cqw; background: var(--amber); color: #1a1200; font-weight: 800;
+              font-size: 2.6cqw; padding: .6cqw 1.4cqw; border-radius: .8cqw; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* scene 2: triangle */
+  .tri { width: 26cqw; }
+  .tri text { font-weight: 800; fill: var(--ink); }
+
+  /* scene 3: table + stacked bar */
+  table { border-collapse: collapse; font-size: 1.75cqw; font-variant-numeric: tabular-nums; }
+  td { padding: .45cqw 1.4cqw; border-bottom: .1cqw solid var(--line); }
+  td:last-child { text-align: right; font-weight: 700; }
+  tr.total td { border-bottom: 0; border-top: .25cqw solid var(--ink); font-size: 2.2cqw; color: var(--green); }
+  .sw { display: inline-block; width: 1.1cqw; height: 1.1cqw; border-radius: .25cqw; margin-right: .8cqw; vertical-align: -.1cqw; }
+  .stack { width: 7cqw; height: 30cqw; border: .15cqw solid var(--line); border-radius: .8cqw; display: flex;
+           flex-direction: column-reverse; overflow: hidden; background: #0a101a; }
+  .seg { height: 0; transition: height .6s cubic-bezier(.2,.8,.2,1); }
+
+  /* scene 4: gauge */
+  .gauge { width: 34cqw; }
+  .gauge .arc { fill: none; stroke-width: 14; stroke-linecap: round; }
+
+  /* scene 5: spike graph */
+  .graph { width: 100%; height: 26cqw; }
+  .graph .line { fill: none; stroke-width: 4; stroke-linejoin: round; }
+  .draw { stroke-dasharray: 2000; stroke-dashoffset: 2000; }
+  .scene.on .draw { animation: draw 3s ease-in-out forwards; animation-delay: var(--d, 0s); }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+
+  /* scene 6: efficiency bars */
+  .bars { display: grid; grid-template-columns: 12cqw 1fr 9cqw; gap: 1.4cqw 1.6cqw; align-items: center; font-size: 2cqw; }
+  .bar { height: 3.4cqw; border-radius: .6cqw; position: relative; background: #0a101a; overflow: hidden; }
+  .bar i { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: .6cqw; transition: width 1.4s cubic-bezier(.2,.8,.2,1); }
+  .bar i.dc { background: var(--blue); }
+  .bar i.loss { background: var(--red); opacity: .85; }
+
+  .badge { display: inline-block; font-size: 2.4cqw; font-weight: 800; padding: 1cqw 2cqw; border-radius: 1cqw; margin: 0 .6cqw; }
+
+
+
+  /* shared extras for episodes 4-7 */
+  .vbar { width: 6cqw; height: 26cqw; border-radius: 3cqw; background: #0a101a; border: .15cqw solid var(--line); position: relative; overflow: hidden; }
+  .vbar i { position: absolute; left: 0; right: 0; bottom: 0; height: 0; transition: height 1.6s cubic-bezier(.2,.8,.2,1); }
+  .vbar .limit, .hbar .limit { position: absolute; background: var(--red); }
+  .vbar .limit { left: 0; right: 0; height: .3cqw; }
+  .hbar { height: 4cqw; border-radius: .6cqw; background: #0a101a; border: .15cqw solid var(--line); position: relative; overflow: visible; }
+  .hbar .ok { position: absolute; top: 0; bottom: 0; background: rgba(61,220,151,.28); border-left: .25cqw solid var(--green); border-right: .25cqw solid var(--green); }
+  .marker { position: absolute; top: -1cqw; bottom: -1cqw; width: .5cqw; border-radius: .3cqw; left: 0; opacity: 0; transition: left 1.6s cubic-bezier(.2,.8,.2,1), opacity .3s; }
+  .tick { display: inline-grid; place-items: center; width: 2.6cqw; height: 2.6cqw; border-radius: .5cqw; border: .2cqw solid var(--line); margin-right: 1.2cqw; font-size: 1.8cqw; color: transparent; transition: all .3s; }
+  .tick.done { background: var(--green); border-color: var(--green); color: #00170d; }
+  .list { font-size: 2.4cqw; display: grid; gap: 1.1cqw; }
+  .led { display: inline-flex; align-items: center; gap: .8cqw; font-size: 2.2cqw; font-weight: 700; margin-right: 3cqw; color: var(--muted); }
+  .led b { width: 2cqw; height: 2cqw; border-radius: 50%; background: #26324a; }
+  .led.lit { color: var(--amber); }
+  .scene.on .led.lit b { animation: blink 1s steps(1) infinite; animation-delay: 1.5s; }
+  @keyframes blink { 0% { background: var(--amber); box-shadow: 0 0 2cqw var(--amber); } 50% { background: #26324a; box-shadow: none; } }
+  .grow { transform: scale(0); }
+  .scene.on .grow { animation: grow 1.4s cubic-bezier(.2,.8,.2,1) forwards; animation-delay: var(--d, 0s); }
+  @keyframes grow { to { transform: scale(1); } }
+  .spinner { width: 8cqw; height: 8cqw; border-radius: 50%; border: .8cqw solid var(--line); border-top-color: var(--blue); animation: spin 1s linear infinite; }
+  .arrow { font-size: 6cqw; font-weight: 800; }
+  .scene.on .flow { animation: flow 1.2s ease-in-out infinite alternate; }
+  @keyframes flow { from { transform: translateX(-1cqw); } to { transform: translateX(1cqw); } }
+  .tight .eq { font-size: 2.6cqw; }
+  .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2cqw; }
+  .cols .panel { font-size: 1.8cqw; line-height: 1.5; }
+  .cols .panel h3 { margin: 0 0 1cqw; font-size: 2.2cqw; }
+
+  .progress { position: absolute; left: 0; bottom: 0; height: .35cqw; background: var(--blue); width: 0; }
+
+  /* chrome */
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center;
+              background: var(--chrome); border: 1px solid var(--chrome-line); border-radius: 10px; padding: 8px 10px; }
+  .controls button { font: inherit; font-size: 14px; color: var(--chrome-ink); background: transparent; border: 1px solid var(--chrome-line);
+                     border-radius: 7px; padding: 6px 12px; cursor: pointer; }
+  .controls button:hover { border-color: var(--chrome-muted); }
+  .controls .count { font-size: 14px; color: var(--chrome-muted); min-width: 64px; text-align: center; font-variant-numeric: tabular-nums; }
+  .hint { font-size: 13px; color: var(--chrome-muted); text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="frame" id="frame">
+  <section class="scene" data-dur="6">
+    <div class="kicker a">PC Academy · Episode 1</div>
+    <h1 class="a" style="--d:.2s">Picking your<br>parts</h1>
+    <div class="sub a" style="--d:.5s">Eight boxes. One working computer.</div>
+  </section>
+  <section class="scene" data-dur="12">
+    <div class="kicker a">What each part does</div>
+    <h2 class="a" style="--d:.1s">Follow the data</h2>
+    <div class="list"><div class="a" style="--d:0.4s"><span class="tick" data-at="900">✓</span><span class="hl-blue">CPU</span>&nbsp;thinks</div><div class="a" style="--d:1.4s"><span class="tick" data-at="1900">✓</span><span class="hl-green">RAM</span>&nbsp;holds what it's thinking about</div><div class="a" style="--d:2.4s"><span class="tick" data-at="2900">✓</span><span class="hl-amber">SSD</span>&nbsp;remembers everything long term</div><div class="a" style="--d:3.4s"><span class="tick" data-at="3900">✓</span><span class="hl-blue">GPU</span>&nbsp;draws the picture</div><div class="a" style="--d:4.4s"><span class="tick" data-at="4900">✓</span><span class="hl-green">Motherboard</span>&nbsp;connects them all</div><div class="a" style="--d:5.4s"><span class="tick" data-at="5900">✓</span><span class="hl-amber">PSU</span>&nbsp;feeds them power</div><div class="a" style="--d:6.4s"><span class="tick" data-at="6900">✓</span><span class="hl-blue">Case and cooler</span>&nbsp;keep it safe and cool</div></div>
+  </section>
+  <section class="scene" data-dur="14">
+    <div class="kicker a">Math Box · Split a $1,200 budget</div>
+<div class="row a" style="--d:0.4s;gap:1.6cqw;margin-top:.7cqw"><div style="width:15cqw;font-size:1.9cqw">GPU</div><div class="bar" style="flex:1;height:2.6cqw"><i data-w="100.0" data-at="900" style="background:var(--violet)"></i></div><div style="width:20cqw;font-size:1.9cqw;font-variant-numeric:tabular-nums">40% × 1200 = <b>$480</b></div></div><div class="row a" style="--d:0.9s;gap:1.6cqw;margin-top:.7cqw"><div style="width:15cqw;font-size:1.9cqw">CPU</div><div class="bar" style="flex:1;height:2.6cqw"><i data-w="50.0" data-at="1400" style="background:var(--blue)"></i></div><div style="width:20cqw;font-size:1.9cqw;font-variant-numeric:tabular-nums">20% × 1200 = <b>$240</b></div></div><div class="row a" style="--d:1.4s;gap:1.6cqw;margin-top:.7cqw"><div style="width:15cqw;font-size:1.9cqw">Motherboard</div><div class="bar" style="flex:1;height:2.6cqw"><i data-w="30.0" data-at="1900" style="background:var(--green)"></i></div><div style="width:20cqw;font-size:1.9cqw;font-variant-numeric:tabular-nums">12% × 1200 = <b>$144</b></div></div><div class="row a" style="--d:1.9s;gap:1.6cqw;margin-top:.7cqw"><div style="width:15cqw;font-size:1.9cqw">RAM</div><div class="bar" style="flex:1;height:2.6cqw"><i data-w="20.0" data-at="2400" style="background:var(--amber)"></i></div><div style="width:20cqw;font-size:1.9cqw;font-variant-numeric:tabular-nums">8% × 1200 = <b>$96</b></div></div><div class="row a" style="--d:2.4s;gap:1.6cqw;margin-top:.7cqw"><div style="width:15cqw;font-size:1.9cqw">SSD</div><div class="bar" style="flex:1;height:2.6cqw"><i data-w="17.5" data-at="2900" style="background:#ff8fb1"></i></div><div style="width:20cqw;font-size:1.9cqw;font-variant-numeric:tabular-nums">7% × 1200 = <b>$84</b></div></div><div class="row a" style="--d:2.9s;gap:1.6cqw;margin-top:.7cqw"><div style="width:15cqw;font-size:1.9cqw">PSU</div><div class="bar" style="flex:1;height:2.6cqw"><i data-w="17.5" data-at="3400" style="background:#5fd4e8"></i></div><div style="width:20cqw;font-size:1.9cqw;font-variant-numeric:tabular-nums">7% × 1200 = <b>$84</b></div></div><div class="row a" style="--d:3.4s;gap:1.6cqw;margin-top:.7cqw"><div style="width:15cqw;font-size:1.9cqw">Case + cooler</div><div class="bar" style="flex:1;height:2.6cqw"><i data-w="15.0" data-at="3900" style="background:var(--red)"></i></div><div style="width:20cqw;font-size:1.9cqw;font-variant-numeric:tabular-nums">6% × 1200 = <b>$72</b></div></div>
+    <div class="eq a" style="--d:4.6s;margin-top:1.6cqw">The shares must add to <span class="hl-green">100%</span> = <span class="hl-green">$1,200</span></div>
+  </section>
+  <section class="scene" data-dur="12">
+    <div class="kicker a">The five compatibility checks</div>
+    <h2 class="a" style="--d:.1s">Before you buy</h2>
+    <div class="list"><div class="a" style="--d:0.4s"><span class="tick" data-at="900">✓</span>CPU socket = motherboard socket (AM5 with AM5)</div><div class="a" style="--d:1.5s"><span class="tick" data-at="2000">✓</span>RAM generation = board memory type (DDR5)</div><div class="a" style="--d:2.6s"><span class="tick" data-at="3100">✓</span>Board size fits the case (ATX, micro-ATX, ITX)</div><div class="a" style="--d:3.7s"><span class="tick" data-at="4200">✓</span>GPU and cooler fit the case clearances</div><div class="a" style="--d:4.8s"><span class="tick" data-at="5300">✓</span>PSU wattage is enough (Episode 2)</div></div>
+  </section>
+  <section class="scene" data-dur="12">
+    <div class="kicker a">Math Box · Will the GPU fit?</div>
+    <div class="eq a" style="--d:.3s">Rule: <span class="hl-blue">GPU length</span> + <span class="hl-amber">10 mm</span> &lt; <span class="hl-green">case clearance</span></div>
+    <div class="note a" style="--d:.8s;margin-top:0">The 10 mm leaves room for the power cable to bend.</div>
+    <div class="hbar a" style="--d:1.4s;margin:3cqw 0 1cqw;height:5cqw">
+      <div class="ok" style="left:0;width:88.2%;border-left:0;background:rgba(77,163,255,.35);border-right-color:var(--blue)"></div>
+      <div class="ok" style="left:88.2%;width:2.9%;border:0;background:rgba(255,184,77,.6)"></div>
+      <div class="marker" data-at="2400" data-x="100" style="background:var(--green)"></div>
+    </div>
+    <div class="row a" style="--d:1.5s;justify-content:space-between;font-size:1.7cqw;color:var(--muted)"><span>0 mm</span><span>example case: 340 mm</span></div>
+    <div class="eq a" style="--d:3.6s;margin-top:1.6cqw">300 + 10 = <span class="hl-amber">310 mm</span> &lt; <span class="hl-green">340 mm ✓</span> it fits</div>
+  </section>
+  <section class="scene" data-dur="6">
+    <div style="text-align:center">
+      <div class="kicker a">Your parts list</div>
+      <div class="a" style="--d:.3s"><span class="badge" style="background:var(--blue);color:#001226">Compatible ✓</span><span class="badge" style="background:var(--green);color:#00170d">On budget ✓</span><span class="badge" style="background:var(--amber);color:#1a1200">Fits ✓</span></div>
+      <div class="sub a" style="--d:1s">Next time: how much power does it need? We do the math.</div>
+    </div>
+  </section>
+
+  <div class="progress" id="prog"></div>
+</div>
+
+<div class="controls">
+  <button id="prev" aria-label="Previous scene">◀ Prev</button>
+  <button id="play">⏸ Pause</button>
+  <button id="next" aria-label="Next scene">Next ▶</button>
+  <span class="count" id="count">1 / 6</span>
+  <button id="restart">↺ Restart</button>
+  <button id="clean">Clean mode</button>
+</div>
+<div class="hint">For recording: Clean mode hides these buttons (press Esc or C to bring them back). Space plays and pauses, arrow keys change scene.</div>
+
+<script>
+(() => {
+  const scenes = [...document.querySelectorAll(".scene")];
+  const prog = document.getElementById("prog");
+  let i = 0, playing = true, timers = [], start = 0, elapsedBefore = 0, raf;
+
+  const later = (ms, fn) => timers.push(setTimeout(fn, ms));
+  const countUp = (el, to, ms, suffix) => {
+    const t0 = performance.now();
+    const tick = now => { const k = Math.min(1, (now - t0) / ms); el.textContent = Math.round(to * (1 - Math.pow(1 - k, 3))) + suffix; if (k < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  };
+
+  // timed fills: any element with data-at (ms after the scene starts) animates to its target
+  const extras = {};
+  const fillBars = s => {
+    s.querySelectorAll("[data-at]").forEach(el => {
+      const at = +el.dataset.at;
+      if (el.classList.contains("tick")) { el.classList.remove("done"); later(at, () => el.classList.add("done")); return; }
+      if (el.classList.contains("marker")) { el.style.transition = "none"; el.style.left = "0"; el.style.opacity = 0; void el.offsetWidth; el.style.transition = "";
+        later(at, () => { el.style.opacity = 1; el.style.left = el.dataset.x + "%"; }); return; }
+      const prop = el.dataset.h ? "height" : "width", to = el.dataset.h || el.dataset.w;
+      el.style.transition = "none"; el.style[prop] = 0; void el.offsetWidth; el.style.transition = "";
+      later(at, () => { el.style[prop] = to + "%"; });
+    });
+  };
+
+  function restartCss(s) {
+    // re-trigger CSS animations when a scene is shown again
+    s.querySelectorAll(".a, .draw").forEach(el => { el.style.animation = "none"; void el.offsetWidth; el.style.animation = ""; });
+  }
+
+  function show(n) {
+    timers.forEach(clearTimeout); timers = [];
+    i = (n + scenes.length) % scenes.length;
+    scenes.forEach((s, k) => s.classList.toggle("on", k === i));
+    restartCss(scenes[i]);
+    extras[scenes[i].id]?.(scenes[i]);
+    fillBars(scenes[i]);
+    document.getElementById("count").textContent = `${i + 1} / ${scenes.length}`;
+    elapsedBefore = 0; start = performance.now();
+  }
+
+  function loop(now) {
+    const dur = scenes[i].dataset.dur * 1000;
+    const el = elapsedBefore + (playing ? now - start : 0);
+    prog.style.width = Math.min(100, el / dur * 100) + "%";
+    if (playing && el >= dur && i < scenes.length - 1) show(i + 1);
+    raf = requestAnimationFrame(loop);
+  }
+
+  function togglePlay() {
+    if (playing) { elapsedBefore += performance.now() - start; } else { start = performance.now(); }
+    playing = !playing;
+    document.getElementById("play").textContent = playing ? "⏸ Pause" : "▶ Play";
+    scenes[i].querySelectorAll("*").forEach(el => el.style.animationPlayState = playing ? "" : "paused");
+  }
+
+  function setClean(on) { document.body.classList.toggle("clean", on); }
+
+  document.getElementById("prev").onclick = () => show(i - 1);
+  document.getElementById("next").onclick = () => show(i + 1);
+  document.getElementById("play").onclick = togglePlay;
+  document.getElementById("restart").onclick = () => { if (!playing) togglePlay(); show(0); };
+  document.getElementById("clean").onclick = () => setClean(true);
+  document.addEventListener("keydown", e => {
+    if (e.key === " ") { e.preventDefault(); togglePlay(); }
+    else if (e.key === "ArrowRight") show(i + 1);
+    else if (e.key === "ArrowLeft") show(i - 1);
+    else if (e.key === "Escape" || e.key.toLowerCase() === "c") setClean(e.key !== "Escape" && !document.body.classList.contains("clean"));
+  });
+
+  show(0);
+  raf = requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
